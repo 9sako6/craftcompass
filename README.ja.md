@@ -2,25 +2,43 @@
 
 English README: [README.md](README.md)
 
-`craftcompass` は、開発習慣をローカルで観測するための local-first observability tool です。shell command のメタデータを手元で記録し、外部送信なしで terminal 上に summary を表示します。
+**開発時間の使い方を、感覚ではなく見える形にする。**
 
-## Principles
+`craftcompass` は、毎日の shell activity を local・privacy-first に集計して、focus できている時間、repo の切替、test の失敗ループを terminal で振り返れるようにします。
 
-- 保存先はローカルのみ
-- privacy-first の既定値
-- command arguments、stdin、env、file contents、secrets は保存しない
-- zsh hook で低負荷にイベント収集
-- 日次・週次の summary を terminal で確認できる
+```text
+$ craftcompass summary day
 
-## Stack
+Day summary
+active time: 5h42m
+repo switches: 9
+idle gaps: 4
+longest focus: 1h18m
+test runs: 23
 
-- `mise` で管理する Go 1.26
-- JSONL event store
-- zsh `preexec` / `precmd` hook
+top repos:
+  ~/src/api 2h31m
+  ~/src/web 1h44m
+  ~/dotfiles 28m
 
-## Setup
+categories:
+  test 41%
+  edit 24%
+  git 18%
+  search 11%
+  misc 6%
+```
 
-toolchain を入れて binary を build します。
+## うれしさ
+
+- 今週どの repo に時間を使っているか、すぐわかる
+- repo switch や idle gap が多い日を見つけやすい
+- test-fail-repeat の詰まり方が見える
+- データは手元だけに残る。SaaS も過剰追跡もない
+
+## すぐ始める
+
+まず binary を build します。
 
 ```bash
 mise trust .mise.toml
@@ -28,29 +46,52 @@ mise install
 mise exec -- go build -o ./bin/craftcompass ./cmd/craftcompass
 ```
 
-`./bin` を `PATH` に通すか、shell alias を設定してください。hook script は既定で `PATH` 上の `craftcompass` を探します。必要なら `CRAFTCOMPASS_BIN` で binary path を明示できます。
-
-## zsh Hook
-
-`.zshrc` に次を追加します。
+つぎに `zsh` に hook を入れます。
 
 ```zsh
 export CRAFTCOMPASS_BIN="$HOME/path/to/craftcompass/bin/craftcompass"
 source "$HOME/path/to/craftcompass/shell/craftcompass.zsh"
 ```
 
-hook 側は失敗しても握りつぶすので、record に失敗しても shell 操作は壊しません。
-
-## Commands
-
-hook からは次のように記録します。
+あとは使うだけです。
 
 ```bash
-craftcompass record start --session zsh-123 --shell zsh --cwd "$PWD" --command "git status"
-craftcompass record end --session zsh-123 --exit-code 0
+craftcompass summary day
+craftcompass summary week
+craftcompass top repos
+craftcompass doctor
 ```
 
-summary や診断は次です。
+## 見えるもの
+
+### Daily / Weekly Summary
+
+- active time
+- top repos
+- command category breakdown
+- repo switches
+- idle gaps
+- longest focus block
+- test-run pressure
+- failure loop hints
+
+### 壊れにくい Hook
+
+- zsh `preexec` / `precmd`
+- 記録に失敗しても shell は壊さない
+- 保存は local JSONL のみ
+
+## Privacy
+
+`craftcompass` が保存するのはメタデータ中心です。
+
+- `strict`: command name を保存しない
+- `balanced`: 先頭 command token だけ保存する
+- `debug`: ローカル診断用の予約モード
+
+arguments、stdin、env、file contents、secrets は保存しません。
+
+## Main Commands
 
 ```bash
 craftcompass summary day
@@ -61,15 +102,9 @@ craftcompass doctor
 craftcompass export --format json
 ```
 
-## Storage
-
-- Config: `~/.config/craftcompass/config.toml`
-- Events: `~/.local/state/craftcompass/events.jsonl`
-- Summary cache: `~/.local/state/craftcompass/summaries/`
-
 ## Config
 
-設定例:
+設定ファイルは `~/.config/craftcompass/config.toml` に置きます。
 
 ```toml
 privacy_mode = "balanced"
@@ -84,24 +119,15 @@ paths = [
   "/private/tmp",
   "/tmp",
 ]
-
-[categories]
-test = ["bun", "pytest", "cargo", "go", "npm", "pnpm", "yarn"]
-search = ["rg", "fd", "grep", "find", "ast-grep"]
-edit = ["nvim", "vim", "code"]
-nav = ["cd", "z", "zi", "pwd", "ls", "eza"]
-git = ["git"]
 ```
 
-## Privacy Modes
+## Storage
 
-- `strict`: category、time、repo、cwd、exit code、duration だけ保存する
-- `balanced`: `strict` に加えて先頭 command token を保存する
-- `debug`: ローカル開発用の予約モード。現状の永続化内容は `balanced` と同じ
+- Config: `~/.config/craftcompass/config.toml`
+- Events: `~/.local/state/craftcompass/events.jsonl`
+- Summary cache: `~/.local/state/craftcompass/summaries/`
 
 ## Development
-
-test は `mise` 経由で実行します。
 
 ```bash
 mise exec -- go test ./...

@@ -2,25 +2,43 @@
 
 Japanese README: [README.ja.md](README.ja.md)
 
-`craftcompass` is a local-first observability tool for development habits. It records shell command metadata on your machine, stores everything locally, and renders terminal summaries without sending data anywhere.
+**See where your dev time actually goes.**
 
-## Principles
+`craftcompass` turns everyday shell activity into local, privacy-first summaries so you can spot focus windows, repo churn, and failure loops before they become habits.
 
-- Local storage only
-- Privacy-first defaults
-- No command arguments, stdin, env, file contents, or secrets
-- zsh hook integration for low-friction capture
-- Daily and weekly summaries in the terminal
+```text
+$ craftcompass summary day
 
-## Stack
+Day summary
+active time: 5h42m
+repo switches: 9
+idle gaps: 4
+longest focus: 1h18m
+test runs: 23
 
-- Go 1.26 via `mise`
-- JSONL event store
-- zsh `preexec` and `precmd` hooks
+top repos:
+  ~/src/api 2h31m
+  ~/src/web 1h44m
+  ~/dotfiles 28m
 
-## Setup
+categories:
+  test 41%
+  edit 24%
+  git 18%
+  search 11%
+  misc 6%
+```
 
-Install the toolchain and build the binary:
+## Why It Feels Useful
+
+- See which repos are eating your week.
+- Catch fragmented days with too many switches and idle gaps.
+- Notice when you are stuck in test-fail-repeat loops.
+- Keep everything local. No SaaS. No surveillance creep.
+
+## Get Started Fast
+
+Build the binary:
 
 ```bash
 mise trust .mise.toml
@@ -28,29 +46,52 @@ mise install
 mise exec -- go build -o ./bin/craftcompass ./cmd/craftcompass
 ```
 
-Create a shell alias or put `./bin` on your `PATH`. The hook script looks for `craftcompass` on `PATH` by default, or you can set `CRAFTCOMPASS_BIN` explicitly.
-
-## zsh Hook
-
-Add this to your `.zshrc`:
+Wire it into `zsh`:
 
 ```zsh
 export CRAFTCOMPASS_BIN="$HOME/path/to/craftcompass/bin/craftcompass"
 source "$HOME/path/to/craftcompass/shell/craftcompass.zsh"
 ```
 
-The hook swallows errors so your shell keeps working even if event recording fails.
-
-## Commands
-
-Record commands from the hook:
+Then use it:
 
 ```bash
-craftcompass record start --session zsh-123 --shell zsh --cwd "$PWD" --command "git status"
-craftcompass record end --session zsh-123 --exit-code 0
+craftcompass summary day
+craftcompass summary week
+craftcompass top repos
+craftcompass doctor
 ```
 
-Inspect summaries:
+## What You Get
+
+### Daily and Weekly Readouts
+
+- Active time
+- Top repos
+- Command category breakdown
+- Repo switches
+- Idle gaps
+- Longest focus block
+- Test-run pressure
+- Failure loop hints
+
+### Zero-Fragility Shell Hooks
+
+- zsh `preexec` / `precmd`
+- Recording failures do not break your shell
+- Local JSONL storage
+
+## Privacy By Default
+
+`craftcompass` stores metadata, not the dangerous parts.
+
+- `strict`: no command name
+- `balanced`: first command token only
+- `debug`: reserved for local diagnostics
+
+It does **not** store arguments, stdin, env, file contents, or secrets.
+
+## Main Commands
 
 ```bash
 craftcompass summary day
@@ -61,15 +102,9 @@ craftcompass doctor
 craftcompass export --format json
 ```
 
-## Storage
-
-- Config: `~/.config/craftcompass/config.toml`
-- Events: `~/.local/state/craftcompass/events.jsonl`
-- Summary cache: `~/.local/state/craftcompass/summaries/`
-
 ## Config
 
-Example config:
+Config lives at `~/.config/craftcompass/config.toml`.
 
 ```toml
 privacy_mode = "balanced"
@@ -84,24 +119,15 @@ paths = [
   "/private/tmp",
   "/tmp",
 ]
-
-[categories]
-test = ["bun", "pytest", "cargo", "go", "npm", "pnpm", "yarn"]
-search = ["rg", "fd", "grep", "find", "ast-grep"]
-edit = ["nvim", "vim", "code"]
-nav = ["cd", "z", "zi", "pwd", "ls", "eza"]
-git = ["git"]
 ```
 
-## Privacy Modes
+## Storage
 
-- `strict`: store category, time, repo, cwd, exit code, and duration
-- `balanced`: `strict` plus the first command token
-- `debug`: reserved for local development diagnostics, currently persisted like `balanced`
+- Config: `~/.config/craftcompass/config.toml`
+- Events: `~/.local/state/craftcompass/events.jsonl`
+- Summary cache: `~/.local/state/craftcompass/summaries/`
 
 ## Development
-
-Run the tests with `mise`:
 
 ```bash
 mise exec -- go test ./...
