@@ -1,5 +1,7 @@
 # craftcompass
 
+Japanese README: [README.ja.md](README.ja.md)
+
 `craftcompass` is a local-first observability tool for development habits. It records shell command metadata on your machine, stores everything locally, and renders terminal summaries without sending data anywhere.
 
 ## Principles
